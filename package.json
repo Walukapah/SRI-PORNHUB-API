@@ -1,0 +1,8 @@
+{
+  "name": "pornhub-api-vercel",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "pornhub.js": "^1.14.0"
+  }
+}
