@@ -2,7 +2,10 @@
   "name": "pornhub-api-vercel",
   "version": "1.0.0",
   "type": "module",
+  "main": "index.js",
   "dependencies": {
+    "@justalk/pornhub-api": "^3.5.0",
+    "express": "^5.1.0",
     "pornhub.js": "^1.14.0"
   }
 }
