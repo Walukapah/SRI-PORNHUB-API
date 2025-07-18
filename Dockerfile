@@ -1,20 +1,13 @@
 FROM node:18-alpine
 
-# Install system dependencies including git
-RUN apk add --no-cache \
-    python3 \
-    make \
-    g++ \
-    cairo-dev \
-    jpeg-dev \
-    pango-dev \
-    giflib-dev \
-    git
+WORKDIR /usr/src/app
 
-WORKDIR /app
 COPY package*.json ./
-RUN npm install
+
+RUN npm install --production
+
 COPY . .
 
-EXPOSE 8000
-CMD ["npm", "start"]
+EXPOSE 3000
+
+CMD ["node", "index.js"]
