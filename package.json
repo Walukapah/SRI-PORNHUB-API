@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "pornhub.js": "^1.4.6",
+    "pornhub.js": "^1.14.0",
     "mumaker": "^2.0.0",
     "cors": "^2.8.5"
   },
