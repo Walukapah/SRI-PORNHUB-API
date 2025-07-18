@@ -29,37 +29,22 @@ const availableTypes = [
 
 // Video info endpoint
 const pornhub = new PornHub();
-app.get('/api/video', async (req, res) => {
-  try {
-    const url = req.query.url;
-    if (!url) {
-      return res.status(400).json({ 
-        success: false,
-        error: 'Missing video URL (use ?url=)' 
-      });
-    }
 
+app.get('/api/video', async (req, res) => {
+  const url = req.query.url;
+
+  if (!url) {
+    return res.status(400).json({ error: 'Missing video URL (use ?url=)' });
+  }
+
+  try {
     const video = await pornhub.video(url);
-    if (!video || !video.title) {
-      return res.status(502).json({ 
-        success: false,
-        error: 'Pornhub parsing failed or data missing' 
-      });
-    }
-    
-    res.status(200).json({
-      success: true,
-      data: video
-    });
-    
+    res.json(video);
   } catch (err) {
-    res.status(500).json({ 
-      success: false,
-      error: 'Failed to fetch video info', 
-      details: err.message 
-    });
+    res.status(500).json({ error: 'Failed to fetch video info', details: err.message });
   }
 });
+
 
 // Text generation endpoint
 app.all('/api/text-generate', async (req, res) => {
