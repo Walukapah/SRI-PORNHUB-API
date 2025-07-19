@@ -49,38 +49,33 @@ app.get('/api/video', async (req, res) => {
 // Text generation endpoint
 app.all('/api/text-generate', async (req, res) => {
   try {
-    const { text, type } = req.method === 'GET' ? req.query : req.body;
+    const { text, url } = req.method === 'GET' ? req.query : req.body;
 
-    if (!text || !type) {
+    if (!text || !url) {
       return res.status(400).json({
         success: false,
-        message: "Required parameters missing: 'text' and 'type'",
-        availableTypes: availableTypes
+        message: "Required parameters missing: 'text' and 'url'"
       });
     }
 
-    if (!availableTypes.includes(type)) {
+    // Validate the URL format (basic validation)
+    const urlPattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
+      '((([a-z\\d]([a-z\\d-]*[a-z\\d])?)\\.)+[a-z]{2,}|'+ // domain name
+      'localhost|'+ // localhost
+      '\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|'+ // IP address
+      '\\[?[a-f\\d:]+\\]?)'+ // IPv6
+      '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ // port and path
+      '(\\?[;&a-z\\d%_.~+=-]*)?'+ // query string
+      '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
+
+    if (!urlPattern.test(url)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid type specified",
-        availableTypes: availableTypes
+        message: "Invalid URL format"
       });
     }
 
-    let result;
-    switch (type) {
-      case 'ice':
-        result = await mumaker.ephoto("https://en.ephoto360.com/ice-text-effect-online-101.html", text);
-        break;
-      case 'metallic':
-        result = await mumaker.ephoto("https://en.ephoto360.com/impressive-decorative-3d-metal-text-effect-798.html", text);
-        break;
-      case 'neon':
-        result = await mumaker.ephoto("https://en.ephoto360.com/create-colorful-neon-light-text-effects-online-797.html", text);
-        break;
-      default:
-        result = await mumaker.ephoto(`https://en.ephoto360.com/${type}-text-effect.html`, text);
-    }
+    let result = await mumaker.ephoto(url, text);
 
     if (!result?.image) {
       throw new Error('Failed to generate image');
@@ -89,8 +84,7 @@ app.all('/api/text-generate', async (req, res) => {
     res.json({
       success: true,
       imageUrl: result.image,
-      text: text,
-      type: type
+      text: text
     });
 
   } catch (error) {
@@ -101,6 +95,7 @@ app.all('/api/text-generate', async (req, res) => {
     });
   }
 });
+
 
 // Health check endpoint
 app.get('/health', (req, res) => {
