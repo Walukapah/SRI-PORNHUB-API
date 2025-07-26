@@ -2,14 +2,20 @@
 const express = require('express');
 const { PornHub } = require('pornhub.js');
 const mumaker = require('mumaker');
+const cors = require('cors');
+const axios = require("axios");
+const cheerio = require("cheerio");
+const FormData = require("form-data");
+
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Middleware
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS middleware
+// CORS Headers manually (optional, since cors() handles it too)
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
@@ -17,10 +23,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Text generation available types
-// API endpoints
-
-// Video info endpoint
+// ========== PornHub Video Info API ==========
 const pornhub = new PornHub();
 
 app.get('/api/video', async (req, res) => {
@@ -38,77 +41,109 @@ app.get('/api/video', async (req, res) => {
   }
 });
 
+// ========== Text-Photo Generator API ==========
+async function maker(url, texts) {
+  if (/https?:\/\/(ephoto360|photooxy|textpro)\.(com|me)/i.test(url)) throw new Error("URL Invalid");
 
-// Text generation endpoint
-app.all('/api/text-generate', async (req, res) => {
   try {
-    const params = req.method === 'GET' ? req.query : req.body;
-    const { text, text2, url } = params;
-
-    if (!url) {
-      return res.status(400).json({
-        success: false,
-        message: "Required parameter missing: 'url'"
-      });
-    }
-
-    if (!text && !text2) {
-      return res.status(400).json({
-        success: false,
-        message: "At least one of 'text' or 'text2' parameters is required"
-      });
-    }
-
-    // Validate the URL format (basic validation)
-    const urlPattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
-      '((([a-z\\d]([a-z\\d-]*[a-z\\d])?)\\.)+[a-z]{2,}|'+ // domain name
-      'localhost|'+ // localhost
-      '\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}|'+ // IP address
-      '\\[?[a-f\\d:]+\\]?)'+ // IPv6
-      '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ // port and path
-      '(\\?[;&a-z\\d%_.~+=-]*)?'+ // query string
-      '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
-
-    if (!urlPattern.test(url)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid URL format"
-      });
-    }
-
-    // Combine text and text2 if both exist
-    const finalText = text2 ? `${text} ${text2}` : text;
-
-    let result = await mumaker.ephoto(url, finalText);
-
-    if (!result?.image) {
-      throw new Error('Failed to generate image');
-    }
-
-    res.json({
-      success: true,
-      imageUrl: result.image,
-      text: finalText
+    let a = await axios.get(url, {
+      headers: {
+        "Accept": "text/html",
+        "User-Agent": "Mozilla/5.0",
+        "Origin": (new URL(url)).origin,
+        "Referer": url,
+      }
     });
 
+    let $ = cheerio.load(a.data);
+
+    let server = $('#build_server').val();
+    let serverId = $('#build_server_id').val();
+    let token = $('#token').val();
+    let submit = $('#submit').val();
+
+    let types = [];
+    $('input[name="radio0[radio]"]').each((i, elem) => {
+      types.push($(elem).attr("value"));
+    });
+
+    let post = {
+      submit,
+      token,
+      build_server: server,
+      build_server_id: Number(serverId)
+    };
+
+    if (types.length > 0) {
+      post['radio0[radio]'] = types[Math.floor(Math.random() * types.length)];
+    }
+
+    let form = new FormData();
+    for (let i in post) form.append(i, post[i]);
+    for (let text of texts) form.append("text[]", text);
+
+    let b = await axios.post(url, form, {
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        "Origin": (new URL(url)).origin,
+        "Referer": url,
+        "Cookie": a.headers['set-cookie']?.join('; ') || "",
+        ...form.getHeaders()
+      }
+    });
+
+    $ = cheerio.load(b.data);
+    let out = ($('#form_value').first().text() || $('#form_value_input').first().text() || $('#form_value').first().val() || $('#form_value_input').first().val());
+
+    let c = await axios.post((new URL(url)).origin + "/effect/create-image", JSON.parse(out), {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "Mozilla/5.0",
+        "Referer": url,
+        "Origin": (new URL(url)).origin,
+        "Cookie": a.headers['set-cookie']?.join('; ') || "",
+      }
+    });
+
+    return {
+      status: c.data?.success,
+      image: server + (c.data?.fullsize_image || c.data?.image || ""),
+      session: c.data?.session_id
+    };
+  } catch (e) {
+    throw e;
+  }
+}
+
+app.get('/api/text-photo', async (req, res) => {
+  try {
+    const { url, ...queryParams } = req.query;
+    if (!url) return res.status(400).json({ error: 'URL parameter is required' });
+
+    const texts = [];
+    for (const key in queryParams) {
+      if (key.startsWith('text')) texts.push(queryParams[key]);
+    }
+
+    if (texts.length === 0) return res.status(400).json({ error: 'At least one text parameter is required' });
+
+    const result = await maker(url, texts);
+    res.json(result);
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ error: 'An error occurred while generating the text image', details: error.message });
   }
 });
 
-// Health check endpoint
+// ========== Health Check ==========
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
+  res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString()
   });
 });
 
-// Start server
+// Start Server
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });
