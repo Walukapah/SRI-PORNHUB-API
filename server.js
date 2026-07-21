@@ -72,7 +72,7 @@ app.post('/api/search', async (req, res) => {
 
 async function googlesearch(query) {
     return new Promise((resolve, reject) => {
-        const pythonScript = path.join(__dirname, 'api', 'googlesearch.py');
+        const pythonScript = path.join(__dirname, 'api', 'app.py');
         
         const pythonProcess = spawn('python3', [pythonScript, query]);
         
