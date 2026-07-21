@@ -11,10 +11,14 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy package files
-COPY package.json ./
+COPY package*.json ./
+COPY requirements.txt ./
 
 # Install Node.js dependencies
 RUN npm install
+
+# Install Python dependencies
+RUN pip3 install --break-system-packages -r requirements.txt
 
 # Copy all project files
 COPY . .
