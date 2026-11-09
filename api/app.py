@@ -30,7 +30,7 @@ MOBILE_UA = (
 
 RETRY_DELAY = 2
 CONCURRENT_REQUESTS = 3
-DOWNLOAD_BASE_URL = "https://sriconvert.onrender.com/video?url="
+DOWNLOAD_BASE_URL = "https://cyan-cheetah-89157.zap.cloud:6060/video?url="
 
 # ─── Helper Functions ─────────────────────────────────────────────────
 
